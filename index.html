@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111210">
+  <meta name="description" content="NOCTURNE. Ночь, скорость и немного цифрового безумия. Интерактивный эдит — включи звук и почувствуй ритм.">
+  <title>NOCTURNE — After Dark</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="./assets/display.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#experience">Перейти к содержимому</a>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="page-progress" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="Nocturne, наверх"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>NOCTURNE<span class="wordmark-dot">®</span></a>
+    <nav aria-label="Основная навигация"><a href="#experience">ОЩУЩЕНИЕ</a><a href="#cuts">ВЫБРАТЬ ВАЙБ <span>↗</span></a></nav>
+    <button class="sound-button" id="sound-toggle" type="button" aria-pressed="false" aria-label="Включить звук"><span class="equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sound-label">ЗВУК ВЫКЛ.</span></button>
+  </header>
+  <main>
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="hero-visual" aria-hidden="true"><img id="hero-image" src="./assets/night-drive.png" alt="" fetchpriority="high"><div class="hero-shade"></div></div>
+      <div class="hero-grid" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="hero-topline"><span><i class="live-dot"></i> НЕ ДЛЯ СНА. ДЛЯ ОЩУЩЕНИЙ.</span><span class="edition">NIGHT STUDIES — VOL. 001</span></div>
+      <div class="hero-title-wrap"><p class="eyebrow">AN AUDIOVISUAL EXPERIENCE</p><h1 id="hero-title"><span class="title-line"><span>AFTER</span></span><span class="title-line"><span>DARK<span class="acid">.</span></span></span></h1><span class="side-label" aria-hidden="true">EST. AFTER MIDNIGHT</span></div>
+      <div class="hero-bottom"><div class="hero-action"><button class="primary-button" data-play="midnight" type="button"><span class="play-icon" aria-hidden="true"></span>ЗАПУСТИТЬ ЭДИТ<span class="button-arrow" aria-hidden="true">↗</span></button><span class="micro">15 СЕКУНД, ЧТОБЫ ВЫПАСТЬ ИЗ РЕАЛЬНОСТИ</span></div><p class="hero-description">Город уснул.<br>Твоя история только начинается.</p></div>
+      <div class="hero-footer"><a href="#experience" class="scroll-link"><span class="scroll-ring" aria-hidden="true">↓</span>ЛИСТАЙ. ЧУВСТВУЙ.</a><span class="hero-time" aria-hidden="true">REC <i></i> <span id="timecode">00:00:00</span></span><span class="hero-index">01 <span>/ 03</span></span></div>
+    </section>
+    <div class="marquee" aria-hidden="true"><div class="marquee-track"><span>NO DESTINATION</span><b>✳</b><span>JUST THE FEELING</span><b>✳</b><span>AFTER HOURS</span><b>✳</b><span>NO DESTINATION</span><b>✳</b><span>JUST THE FEELING</span><b>✳</b><span>AFTER HOURS</span><b>✳</b></div></div>
+    <section class="experience section-pad" id="experience" aria-labelledby="feeling-title">
+      <div class="section-label reveal"><span>001 / THE FEELING</span><span>БЕЗ МАРШРУТА. БЕЗ ЛИШНЕГО.</span></div>
+      <div class="feeling-layout"><div class="feeling-left"><h2 class="statement reveal" id="feeling-title">SOME NIGHTS<br>AREN’T MEANT<br>FOR <span class="outline">SLEEP.</span><span class="asterisk acid" aria-hidden="true">✳</span></h2><p class="body-copy reveal">Знаешь этот момент? Город размазывается огнями, бас попадает прямо в пульс — и всё внезапно становится кадром из твоего собственного фильма.</p><p class="little-note reveal">Вот ради этого мы здесь.</p></div><div class="feeling-right reveal"><div class="viewfinder"><div class="viewfinder-image" role="img" aria-label="Ночной спорткар под бетонной эстакадой"></div><span class="finder-cross top-left" aria-hidden="true"></span><span class="finder-cross bottom-right" aria-hidden="true"></span><span class="finder-label">FRAME_024</span><span class="finder-bottom">CAPTURE THE MOMENT.<br>LET THE REST GO.</span><button class="viewfinder-play" type="button" data-play="midnight" aria-label="Запустить ночной эдит"><span class="play-icon" aria-hidden="true"></span></button></div><div class="image-caption"><span>35 MM / DIGITAL FEELING</span><span>↙ AFTER HOURS ARCHIVE</span></div></div></div>
+    </section>
+    <section class="cuts section-pad" id="cuts" aria-labelledby="cuts-title">
+      <div class="section-label reveal"><span>002 / PICK YOUR FREQUENCY</span><span>ТРИ СОСТОЯНИЯ НОЧИ</span></div>
+      <div class="cuts-heading reveal"><h2 id="cuts-title">FIND YOUR<br><span class="outline">AFTER.</span></h2><p>Один город. Разные ощущения.<br>Выбери, на какой ты сегодня частоте.</p></div>
+      <div class="cut-grid">
+        <button class="cut-card cut-midnight reveal" data-play="midnight" type="button" aria-label="Смотреть Midnight Run, ночной эдит"><span class="cut-art" aria-hidden="true"></span><span class="cut-top"><span>01 / NIGHT DRIVE</span><span>15 SEC ↗</span></span><span class="cut-center" aria-hidden="true">01</span><span class="cut-bottom"><span class="cut-name">MIDNIGHT<br>RUN</span><span class="cut-play" aria-hidden="true">↗</span></span><span class="cut-caption">ХОЛОДНЫЙ ВОЗДУХ. ГОРЯЧИЙ ПУЛЬС.</span></button>
+        <button class="cut-card cut-redline reveal" data-play="redline" type="button" aria-label="Смотреть Redline, энергичный эдит"><span class="cut-art" aria-hidden="true"></span><span class="cut-top"><span>02 / HIGH ENERGY</span><span>15 SEC ↗</span></span><span class="cut-center" aria-hidden="true">02</span><span class="cut-bottom"><span class="cut-name">RED<br>LINE</span><span class="cut-play" aria-hidden="true">↗</span></span><span class="cut-caption">ДЛЯ ТЕХ, КТО ЧУВСТВУЕТ ГРОМЧЕ.</span></button>
+        <button class="cut-card cut-dream reveal" data-play="dream" type="button" aria-label="Смотреть Slow Motion, спокойный эдит"><span class="cut-art" aria-hidden="true"></span><span class="cut-top"><span>03 / LOW FREQUENCY</span><span>15 SEC ↗</span></span><span class="cut-center" aria-hidden="true">03</span><span class="cut-bottom"><span class="cut-name">SLOW<br>MOTION</span><span class="cut-play" aria-hidden="true">↗</span></span><span class="cut-caption">ПУСТЬ ЭТА НОЧЬ ДЛИТСЯ ДОЛЬШЕ.</span></button>
+      </div>
+    </section>
+    <section class="outro section-pad" aria-labelledby="outro-title"><div class="outro-top reveal"><span class="micro">003 / THE LAST FRAME</span><span class="micro">CREATED FOR WAXENT</span></div><h2 class="reveal" id="outro-title">STAY<br><span class="acid">AFTER.</span><span class="outro-star" aria-hidden="true">✳</span></h2><div class="outro-bottom reveal"><p>У некоторых ночей нет финальных титров.</p><button class="text-button" data-play="midnight" type="button">ЕЩЁ ОДИН ЗАЕЗД <span>↗</span></button></div></section>
+  </main>
+  <footer class="site-footer"><a class="footer-brand" href="#top">NOCTURNE®</a><span>NOT A PLACE. A STATE OF MIND.</span><button id="motion-toggle" type="button" aria-pressed="false">АНИМАЦИИ: ВКЛ.</button><a href="#top">НАВЕРХ ↑</a></footer>
+  <dialog class="edit-dialog" id="edit-dialog" aria-labelledby="edit-label"><div class="edit-screen" id="edit-screen"><div class="edit-photo" aria-hidden="true"></div><div class="edit-color" aria-hidden="true"></div><canvas id="speed-canvas" aria-hidden="true"></canvas><div class="edit-letterbox" aria-hidden="true"></div><div class="edit-hud"><span id="edit-label">NOCTURNE / MIDNIGHT RUN</span><button id="close-edit" type="button" aria-label="Закрыть эдит">ЗАКРЫТЬ <span>×</span></button></div><div class="edit-type" id="edit-type" aria-live="off">AFTER</div><div class="edit-subtitle" id="edit-subtitle">THE CITY IS YOURS.</div><div class="edit-bottom"><button class="edit-audio" id="edit-sound" type="button" aria-pressed="false">ЗВУК ВЫКЛ.</button><span id="edit-time">00:00 / 00:15</span></div><div class="edit-timeline" aria-hidden="true"><div id="edit-progress"></div></div><div class="edit-end" id="edit-end" hidden><span class="micro">THAT WAS YOUR MOMENT.</span><h2>ONE<br>MORE<span class="acid">?</span></h2><button class="primary-button" id="replay-edit" type="button"><span class="play-icon" aria-hidden="true"></span>ПОВТОРИТЬ ЭДИТ<span>↻</span></button><button class="text-button" id="back-to-night" type="button">ВЕРНУТЬСЯ НА САЙТ ↗</button></div></div></dialog>
+  <div class="toast" id="toast" role="status"></div>
+</body>
+</html>
