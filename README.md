@@ -1,35 +1,34 @@
-# NOCTURNE — After Dark
+# NOCTURNE MOTORS — Japanese Legends
 
-Cinematic interactive night-drive website created for Waxent. Russian interface, kinetic typography, three audiovisual edits and an original synthesized soundtrack.
+A complete static dealership concept for eight Japanese icons. Published at https://cojucaridumitru.github.io/nocturne/ through GitHub Pages (`main`, repository root). This replaces the original NOCTURNE audiovisual landing page while retaining its film and original Web Audio experience.
 
-## Run locally
+## Pages and interactions
 
-Serve this directory with any static HTTP server, for example:
+- Cinematic homepage and featured collection with drivetrain tabs.
+- Full catalogue: make, maximum budget, drivetrain, availability, decade, model/engine search, favourites-only and six sorting options. Filter state is shareable in the hash URL.
+- Eight vehicle detail pages: photos with lightbox, specifications, model history, pre-purchase questions, related cars and share link.
+- Persistent favourites and comparison of up to three cars. Compare price, mileage, year, engine, output, drivetrain, gearbox, body and status.
+- Selection, inspection, delivery and trade-in information with FAQ.
+- A validated request form, vehicle preselection, preferred date/time, device-local drafts, deletion and UTF-8 text export.
+- Photo credits and manufacturer reference links.
+- Responsive navigation, native dialogs, keyboard-operable tabs, reduced motion and preserved original night-drive film.
 
-```sh
-python -m http.server 8080
-```
+## Honest demo scope
 
-Open http://localhost:8080. No build step or dependencies are required.
+This is an interactive dealership concept, not a live inventory or an actual seller. Prices, mileage and availability are illustrative. Photos represent the model and can differ from the named year, market or trim. Factory specifications are reference values.
 
-## GitHub Pages
+**Requests are stored only in the visitor's browser and can be downloaded. They are not sent to a dealership, do not confirm an appointment or reservation, and do not collect payments.** No real dealer contact details were supplied. A real lead workflow needs a separately configured receiving service or backend and the dealer's details. No private credentials belong in frontend code.
 
-Publishing source: **Deploy from a branch**, branch **main**, folder **/(root)**. The `.nojekyll` file ensures the files are served directly. Paths are relative so the site works beneath its repository URL.
+## Source
 
-Push updates to `main` to publish a new version automatically.
+`index.html` contains persistent page shells and dialogs; `app.js` handles routes, catalogue, comparison and request drafts; `cars.js` is the editorial demo inventory. `style.css` is the dealership design; `experience.js` and `experience.css` retain the original film/audio and shared motion preferences. Assets are local, with no third-party runtime dependency.
 
-## Experience
+Start any static server at the repository root, for example `python -m http.server 8080`. Hash routes work under the GitHub Pages project prefix without rewrites. `.nojekyll` serves files directly. Changes to `main` publish automatically.
 
-- Midnight Run, Redline and Slow Motion: three 15-second animated cuts.
-- Original Web Audio rhythm at 128, 160 and 86 BPM. Sound starts only after a user click.
-- Scroll reveals, moving typography, parallax, film grain and canvas speed trails.
-- Mobile layout, keyboard controls and a persistent reduced-motion toggle.
-- Local assets and fonts; no third-party runtime, tracking or login.
+## Attribution
 
-## Assets
+Model photography: Wikimedia Commons; each author, file page and license is recorded in `assets/cars/credits.json` and displayed on `#/credits`. Original image bytes are retained; CSS crops images for display. Font notices are in `assets/FONT-LICENSES.txt`. The night-drive hero is original generated artwork; see `ASSET_NOTES.md`.
 
-The original generated hero photograph is in `assets/night-drive.png`; provenance is in `ASSET_NOTES.md`. Font licenses are in `assets/FONT-LICENSES.txt`.
+## Verification
 
-## Checks
-
-JavaScript syntax and assets checked. Desktop and 320/390 CSS-pixel mobile layouts, mode entry points, sound toggle, modal focus/close and completed edit were checked in a browser.
+JavaScript syntax and asset references checked. Browser QA covered model/engine search, make filtering, price sorting, favourites, comparison, persistence after reload, vehicle history tabs, vehicle-to-request preselection, validated local request creation, successful downloaded request content, photo credits, and 390/320-pixel mobile layouts without page overflow. Product images and final publication are checked separately at deployment.

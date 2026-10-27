@@ -1,365 +1,131 @@
 'use strict';
-
 (() => {
-  const $ = (selector) => document.querySelector(selector);
-  const html = document.documentElement;
-  const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
-  let savedMotion = null;
-  try { savedMotion = localStorage.getItem('nocturne-motion'); } catch (_) {}
-  let reduced = savedMotion === null ? systemMotion.matches : savedMotion === 'reduced';
-  const motionButton = $('#motion-toggle');
-  function setMotion() {
-    html.classList.toggle('motion-reduced', reduced);
-    motionButton.textContent = 'АНИМАЦИИ: ' + (reduced ? 'ВЫКЛ.' : 'ВКЛ.');
-    motionButton.setAttribute('aria-pressed', String(reduced));
-  }
-  setMotion();
-  motionButton.addEventListener('click', () => {
-    reduced = !reduced;
-    savedMotion = reduced ? 'reduced' : 'full';
-    try { localStorage.setItem('nocturne-motion', reduced ? 'reduced' : 'full'); } catch (_) {}
-    setMotion();
-  });
-  systemMotion.addEventListener('change', e => {
-    if (savedMotion !== null) return;
-    reduced = e.matches;
-    setMotion();
-  });
-
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add('visible');
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: .08 });
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-  const pageProgress = $('.page-progress');
-  const heroImage = $('#hero-image');
-  const hero = $('.hero');
-  let scrollQueued = false;
-  function updateScroll() {
-    const scroll = window.scrollY;
-    const max = html.scrollHeight - window.innerHeight;
-    pageProgress.style.transform = `scaleX(${max > 0 ? scroll / max : 0})`;
-    if (!reduced && scroll < hero.offsetHeight && window.innerWidth > 700) {
-      heroImage.style.translate = `0 ${Math.min(scroll * .13, 110)}px`;
-    } else heroImage.style.translate = 'none';
-    scrollQueued = false;
-  }
-  addEventListener('scroll', () => {
-    if (!scrollQueued) { scrollQueued = true; requestAnimationFrame(updateScroll); }
-  }, { passive: true });
-  addEventListener('resize', updateScroll);
-  updateScroll();
-
-  const timecode = $('#timecode');
-  const pageStarted = performance.now();
-  setInterval(() => {
-    if (document.hidden) return;
-    const s = Math.floor((performance.now() - pageStarted) / 1000);
-    timecode.textContent = `00:${String(Math.floor(s / 60) % 60).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
-  }, 1000);
-
-  let toastTimer;
-  function toast(message) {
-    const el = $('#toast');
-    el.textContent = message;
-    el.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
-  }
-
-  const modes = {
-    midnight: { name: 'MIDNIGHT RUN', bpm: 128, accent: '#d5fa38', filter: 'saturate(.78)', notes: [55,55,65.406,49], subs: ['THE CITY IS YOURS.', 'NO DESTINATION.', 'JUST THE FEELING.', 'AFTER HOURS. ALWAYS.'], words: ['AFTER', 'DARK.', 'NO\nDESTINATION.', 'JUST', 'THE\nFEELING.', 'MIDNIGHT\nRUN', 'STAY', 'AFTER.'] },
-    redline: { name: 'REDLINE', bpm: 160, accent: '#ff694c', filter: 'sepia(.7) saturate(2) hue-rotate(315deg)', notes: [49,49,51.913,43.654], subs: ['TURN IT ALL THE WAY UP.', 'FEEL EVERY SECOND.', 'HEARTBEAT IN STEREO.', 'LIVE IN THE RED.'], words: ['RED', 'LINE.', 'FEEL\nEVERYTHING.', 'LOUDER.', 'ALL\nNIGHT.', 'NO\nLIMITS.', 'MORE', 'ALIVE.'] },
-    dream: { name: 'SLOW MOTION', bpm: 86, accent: '#d2e0fc', filter: 'saturate(.45) hue-rotate(22deg)', notes: [65.406,82.407,55,73.416], subs: ['LET THE WORLD WAIT.', 'A LITTLE LONGER.', 'LOST IN A GOOD WAY.', 'DON’T WAKE UP.'], words: ['SLOW', 'MOTION.', 'BREATHE\nIT IN.', 'STAY.', 'A LITTLE\nLONGER.', 'TIME\nDISSOLVES.', 'STILL', 'HERE.'] }
-  };
-
-  // Original browser-synthesized rhythm. No autoplay or third-party audio requests.
-  let audioContext = null;
-  let master = null;
-  let noiseBuffer = null;
-  let soundOn = false;
-  let audioTimer = null;
-  let nextNote = 0;
-  let step = 0;
-  let audioMode = 'midnight';
-  const audioNodes = new Set();
-  function track(node) {
-    audioNodes.add(node);
-    node.addEventListener('ended', () => { audioNodes.delete(node); try { node.disconnect(); } catch (_) {} });
-    return node;
-  }
-  function createAudio() {
-    if (audioContext) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw new Error('Web Audio unavailable');
-    audioContext = new AC();
-    const compressor = audioContext.createDynamicsCompressor();
-    compressor.threshold.value = -18;
-    compressor.ratio.value = 5;
-    master = audioContext.createGain();
-    master.gain.value = .22;
-    master.connect(compressor);
-    compressor.connect(audioContext.destination);
-    noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate, audioContext.sampleRate);
-    const noise = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < noise.length; i++) noise[i] = Math.random() * 2 - 1;
-  }
-  function tone(time, freq, duration, volume, wave = 'sine', slide = false) {
-    const osc = track(audioContext.createOscillator());
-    const envelope = audioContext.createGain();
-    osc.type = wave;
-    osc.frequency.setValueAtTime(freq, time);
-    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(freq / 4, 25), time + duration * .75);
-    envelope.gain.setValueAtTime(.0001, time);
-    envelope.gain.exponentialRampToValueAtTime(volume, time + .009);
-    envelope.gain.exponentialRampToValueAtTime(.0001, time + duration);
-    osc.connect(envelope); envelope.connect(master);
-    osc.start(time); osc.stop(time + duration + .02);
-  }
-  function percussion(time, duration, volume, cutoff, kind = 'highpass') {
-    const source = track(audioContext.createBufferSource());
-    const filter = audioContext.createBiquadFilter();
-    const envelope = audioContext.createGain();
-    source.buffer = noiseBuffer;
-    filter.type = kind; filter.frequency.value = cutoff;
-    envelope.gain.setValueAtTime(volume, time);
-    envelope.gain.exponentialRampToValueAtTime(.0001, time + duration);
-    source.connect(filter); filter.connect(envelope); envelope.connect(master);
-    source.start(time); source.stop(time + duration);
-  }
-  function scheduleBeat() {
-    if (!audioContext || !soundOn) return;
-    const mode = modes[audioMode];
-    const sixteenth = 60 / mode.bpm / 4;
-    while (nextNote < audioContext.currentTime + .12) {
-      const position = step % 16;
-      const note = mode.notes[Math.floor(step / 16) % 4];
-      if (position % 4 === 0) tone(nextNote, 146, .26, .95, 'sine', true);
-      if (position === 4 || position === 12) {
-        percussion(nextNote, .13, .32, 1400, 'bandpass');
-        tone(nextNote, 180, .09, .22, 'triangle', true);
-      }
-      if (position % 2 === 0) percussion(nextNote, .035, position % 4 === 0 ? .12 : .07, 7000);
-      if ([0,3,6,8,11,14].includes(position)) tone(nextNote, note, sixteenth * 1.7, .45, 'triangle');
-      if ([2,5,10,13].includes(position)) {
-        const melody = note * [8,12,10,16][Math.floor(position / 4)];
-        tone(nextNote, melody, .11, .055, 'square');
-        tone(nextNote + .1, melody, .15, .018, 'sine');
-      }
-      nextNote += sixteenth; step++;
-    }
-  }
-  async function startAudio(mode = 'midnight') {
-    try {
-      createAudio();
-      audioMode = mode;
-      await audioContext.resume();
-      master.gain.cancelScheduledValues(audioContext.currentTime);
-      master.gain.setTargetAtTime(.22, audioContext.currentTime, .06);
-      if (!soundOn || !audioTimer) {
-        soundOn = true;
-        nextNote = audioContext.currentTime + .04; step = 0;
-        clearInterval(audioTimer);
-        audioTimer = setInterval(scheduleBeat, 25);
-        scheduleBeat();
-      }
-      updateSoundUI();
-    } catch (_) {
-      soundOn = false;
-      updateSoundUI();
-      toast('Браузер не включил звук. Эдит можно смотреть без него.');
-    }
-  }
-  function stopAudio() {
-    soundOn = false;
-    clearInterval(audioTimer); audioTimer = null;
-    if (audioContext && master) {
-      master.gain.cancelScheduledValues(audioContext.currentTime);
-      master.gain.setTargetAtTime(.0001, audioContext.currentTime, .03);
-    }
-    updateSoundUI();
-  }
-  function updateSoundUI() {
-    document.body.classList.toggle('sound-on', soundOn);
-    $('#sound-toggle').setAttribute('aria-pressed', String(soundOn));
-    $('#sound-toggle').setAttribute('aria-label', soundOn ? 'Выключить звук' : 'Включить звук');
-    $('.sound-label').textContent = soundOn ? 'ЗВУК ВКЛ.' : 'ЗВУК ВЫКЛ.';
-    $('#edit-sound').textContent = soundOn ? 'ЗВУК ВКЛ. ♫' : 'ВКЛЮЧИТЬ ЗВУК ♫';
-    $('#edit-sound').setAttribute('aria-pressed', String(soundOn));
-  }
-  function toggleSound() {
-    if (soundOn) stopAudio();
-    else startAudio(activeMode);
-  }
-  $('#sound-toggle').addEventListener('click', toggleSound);
-  $('#edit-sound').addEventListener('click', toggleSound);
-
-  const dialog = $('#edit-dialog');
-  const editPhoto = $('.edit-photo');
-  const editType = $('#edit-type');
-  const editSubtitle = $('#edit-subtitle');
-  const editProgress = $('#edit-progress');
-  const editTime = $('#edit-time');
-  const editEnd = $('#edit-end');
-  const canvas = $('#speed-canvas');
-  const ctx = canvas.getContext('2d');
-  let activeMode = 'midnight';
-  let playing = false;
-  let editStarted = 0;
-  let pausedAt = 0;
-  let raf = 0;
-  let previousWord = -1;
-  let returnFocus = null;
-  let hadAmbientSound = false;
-  let replaySound = false;
-  let width = 0, height = 0;
-  const trails = Array.from({length:32}, () => ({angle:Math.random() * Math.PI * 2,offset:Math.random(),speed:.4 + Math.random() * .6}));
-  function resizeCanvas() {
-    width = window.innerWidth; height = window.innerHeight;
-    const dpr = Math.min(devicePixelRatio || 1, 1.5);
-    canvas.width = width * dpr; canvas.height = height * dpr;
-    if(ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }
-  addEventListener('resize', resizeCanvas);
-  function drawTrails(elapsed, impact, accent) {
-    if (!ctx) return;
-    ctx.clearRect(0, 0, width, height);
-    if (reduced) return;
-    const cx = width * .55, cy = height * .56;
-    const radius = Math.hypot(width, height) * .7;
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = .7;
-    for (const trail of trails) {
-      const progress = (trail.offset + elapsed * .00016 * trail.speed) % 1;
-      const r = progress * progress * radius;
-      if (r < radius * .24) continue;
-      const length = (12 + progress * 85) * (.45 + impact * .6);
-      ctx.globalAlpha = progress * .21;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(trail.angle) * r, cy + Math.sin(trail.angle) * r);
-      ctx.lineTo(cx + Math.cos(trail.angle) * (r + length), cy + Math.sin(trail.angle) * (r + length));
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  }
-  function animateEdit(now) {
-    if (!playing) return;
-    const elapsed = Math.max(0, now - editStarted);
-    const seconds = Math.min(elapsed / 1000, 15);
-    const mode = modes[activeMode];
-    const progress = seconds / 15;
-    const beatLength = 60000 / mode.bpm;
-    const beatPhase = (elapsed % beatLength) / beatLength;
-    const impact = Math.exp(-beatPhase * 10);
-    const wordIndex = Math.min(Math.floor(seconds / 1.875), 7);
-    if (wordIndex !== previousWord) {
-      previousWord = wordIndex;
-      editType.textContent = mode.words[wordIndex];
-      editSubtitle.textContent = mode.subs[Math.floor(wordIndex / 2)];
-      const longWord = mode.words[wordIndex].split('\n').some(word => word.length > 8);
-      editType.style.fontSize = longWord ? 'clamp(60px, 15vw, 240px)' : '';
-      editType.style.color = wordIndex % 3 === 1 ? mode.accent : 'var(--paper)';
-      const translate = [0, -6, 9, -9, 5, -2, 8, 0][wordIndex];
-      const zoom = [1.04,1.28,1.1,1.38,1.12,1.26,1.08,1.17][wordIndex];
-      editPhoto.dataset.zoom = String(zoom);
-      editPhoto.dataset.pan = String(translate);
-    }
-    const phase = (seconds % 1.875) / 1.875;
-    if (reduced) {
-      editPhoto.style.transform = 'scale(1.05)';
-      editPhoto.style.filter = mode.filter;
-      editType.style.transform = 'translateY(-50%)';
-      editType.style.opacity = '1';
-      editType.style.filter = 'none';
-    } else {
-      const zoom = Number(editPhoto.dataset.zoom) + phase * (activeMode === 'dream' ? .03 : .07) + impact * .025;
-      const shake = activeMode === 'redline' ? Math.sin(elapsed * .07) * impact * 3 : Math.sin(elapsed * .035) * impact * 1.1;
-      editPhoto.style.transform = `translate(${Number(editPhoto.dataset.pan) + shake}px,${shake * .35}px) scale(${zoom})`;
-      editPhoto.style.filter = `${mode.filter} brightness(${.72 + impact * .12})`;
-      const arrival = Math.min(phase * 9, 1);
-      const textScale = .94 + arrival * .06 + impact * .012;
-      editType.style.transform = `translate(${(1 - arrival) * 40}px,calc(-50% + ${(1 - arrival) * 24}px)) scale(${textScale})`;
-      editType.style.opacity = String(Math.min(phase * 12, 1));
-      editType.style.filter = `blur(${(1 - arrival) * 9}px)`;
-    }
-    editProgress.style.transform = `scaleX(${progress})`;
-    editTime.textContent = `00:${String(Math.floor(seconds)).padStart(2,'0')} / 00:15`;
-    drawTrails(elapsed, impact, mode.accent);
-    if (seconds >= 15) {
-      playing = false;
-      editEnd.hidden = false;
-      editType.style.opacity = '0';
-      editSubtitle.style.opacity = '0';
-      replaySound = soundOn;
-      if (soundOn) stopAudio();
-      $('#replay-edit').focus({preventScroll:true});
-      return;
-    }
-    raf = requestAnimationFrame(animateEdit);
-  }
-  function beginEdit() {
-    editEnd.hidden = true;
-    editSubtitle.style.opacity = '1';
-    previousWord = -1;
-    editStarted = performance.now();
-    pausedAt = 0;
-    playing = true;
-    cancelAnimationFrame(raf);
-    animateEdit(editStarted);
-  }
-  function openEdit(modeName, button) {
-    if (dialog.open) return;
-    activeMode = modes[modeName] ? modeName : 'midnight';
-    returnFocus = button;
-    hadAmbientSound = soundOn;
-    dialog.dataset.mode = activeMode;
-    $('#edit-label').textContent = 'NOCTURNE / ' + modes[activeMode].name;
-    document.body.classList.add('modal-open');
-    dialog.showModal();
-    resizeCanvas();
-    beginEdit();
-    $('#close-edit').focus({preventScroll:true});
-    if (soundOn) { stopAudio(); startAudio(activeMode); }
-    else updateSoundUI();
-  }
-  function closeEdit() {
-    playing = false;
-    cancelAnimationFrame(raf);
-    dialog.close();
-  }
-  dialog.addEventListener('close', () => {
-    playing = false;
-    cancelAnimationFrame(raf);
-    document.body.classList.remove('modal-open');
-    if (hadAmbientSound) startAudio('midnight');
-    else stopAudio();
-    if (returnFocus) returnFocus.focus({preventScroll:true});
-  });
-  document.querySelectorAll('[data-play]').forEach(button => {
-    button.addEventListener('click', () => openEdit(button.dataset.play, button));
-  });
-  $('#close-edit').addEventListener('click', closeEdit);
-  $('#back-to-night').addEventListener('click', closeEdit);
-  $('#replay-edit').addEventListener('click', () => { beginEdit(); if (replaySound) startAudio(activeMode); $('#close-edit').focus({preventScroll:true}); });
-  addEventListener('keydown', event => {
-    if (event.code === 'Space' && !event.repeat && !dialog.open && !['BUTTON','A','INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
-      event.preventDefault(); openEdit('midnight', $('[data-play]'));
-    }
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      if (playing) { pausedAt = performance.now(); cancelAnimationFrame(raf); }
-      if (audioContext) audioContext.suspend().catch(() => {});
-    } else {
-      if (playing && pausedAt) { editStarted += performance.now() - pausedAt; pausedAt = 0; raf = requestAnimationFrame(animateEdit); }
-      if (audioContext && soundOn) {
-        audioContext.resume().then(() => { nextNote = audioContext.currentTime + .05; }).catch(() => {});
-      }
-    }
-  });
-  updateSoundUI();
+ const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+ const cars=window.NOCTURNE_CARS, carById=id=>cars.find(c=>c.id===id);
+ const brands=[...new Set(cars.map(c=>c.brand))];
+ const validIds=new Set(cars.map(c=>c.id));
+ const storeKey='nocturne-motors-v1';
+ const money=n=>'€ '+new Intl.NumberFormat('ru-RU').format(n);
+ const number=n=>new Intl.NumberFormat('ru-RU').format(n);
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const heart='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>';
+ const compareIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 8v12M19 2v18M2 20h20"/></svg>';
+ const statusNames={stock:'В ШОУРУМЕ',order:'ПОД ЗАКАЗ',reserved:'В РЕЗЕРВЕ'};
+ const purposes={viewing:'Просмотр автомобиля',selection:'Персональный подбор',inspection:'Проверка перед покупкой',delivery:'Доставка и маршрут',tradein:'Обмен автомобиля'};
+ let stored={};try{stored=JSON.parse(localStorage.getItem(storeKey)||'{}')||{};}catch(_){}
+ const cleanIds=value=>Array.isArray(value)?[...new Set(value.filter(id=>validIds.has(id)))]:[];
+ const state={favorites:cleanIds(stored.favorites),compare:cleanIds(stored.compare).slice(0,3),requests:Array.isArray(stored.requests)?stored.requests.filter(r=>r&&typeof r.id==='string'&&typeof r.name==='string').slice(0,20):[]};
+ let storageAvailable=true;
+ function save(){try{localStorage.setItem(storeKey,JSON.stringify(state));}catch(_){if(storageAvailable)toast('Выбор сохранён до закрытия вкладки: постоянное хранилище недоступно.');storageAvailable=false;}}
+ let toastTimer;
+ function toast(text){const box=$('#toast');box.textContent=text;box.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.remove('show'),3000);}
+ let route='home',currentCar=null,homeFilter='all',lastRequest=null;
+ let filters={brands:[],budget:220000,drive:'all',status:'all',decade:'all',q:'',sort:'curated',favorites:false};
+ const photo=c=>'./assets/cars/'+c.photo+'.jpg';
+ function card(c){const fav=state.favorites.includes(c.id),comp=state.compare.includes(c.id);return `<article class="car-card" data-car="${c.id}"><div class="car-image-wrap"><a class="car-image-link" href="#/car/${c.id}" aria-label="Подробнее: ${esc(c.brand+' '+c.model)}"><img src="${photo(c)}" alt="${esc(c.brand+' '+c.model+' '+c.code)} — фото модели" loading="lazy" width="1100" height="733"></a><span class="car-badge ${c.status}">${statusNames[c.status]}</span><button class="car-heart" type="button" data-favorite="${c.id}" aria-pressed="${fav}" aria-label="${fav?'Убрать из избранного:':'В избранное:'} ${esc(c.brand+' '+c.model)}">${heart}</button><span class="car-image-code">${c.code} / ${c.tag}</span></div><div class="car-copy"><div class="car-brand"><span>${c.brand}</span><span>${c.year} / ${c.code}</span></div><h3><a href="#/car/${c.id}">${c.model}</a></h3><p class="car-variant">${c.version}</p><div class="car-specs"><span>${number(c.mileage)} км</span><i></i><span>${c.power} PS</span><i></i><span>MT</span><i></i><span>${c.drive}</span></div><div class="car-footer"><span class="car-price">${money(c.price)}<small>ДЕМОНСТРАЦИОННАЯ ЦЕНА</small></span><button class="car-compare" type="button" data-compare="${c.id}" aria-pressed="${comp}" aria-label="${comp?'Убрать из сравнения:':'В сравнение:'} ${esc(c.brand+' '+c.model)}">${compareIcon}<span>${comp?'В сравнении':'Сравнить'}</span></button></div></div></article>`;}
+ const empty=(title,text,action='В КОЛЛЕКЦИЮ',href='#/catalog')=>`<div class="empty-state"><span class="empty-icon" aria-hidden="true">↗</span><h2>${title}</h2><p>${text}</p><a class="primary-button" href="${href}">${action}<span>↗</span></a></div>`;
+ function renderFeatured(){const list=cars.filter(c=>homeFilter==='all'||c.drive===homeFilter);$('#featured-grid').innerHTML=list.slice(0,6).map(card).join('');}
+ function syncWidgets(){
+  const count=$('#favorite-count');count.textContent=state.favorites.length;count.hidden=!state.favorites.length;
+  count.closest('a').setAttribute('aria-label','Избранное: '+state.favorites.length);
+  $$('[data-favorite]').forEach(b=>{const c=carById(b.dataset.favorite);if(!c)return;const selected=state.favorites.includes(c.id);b.setAttribute('aria-pressed',String(selected));b.setAttribute('aria-label',(selected?'Убрать из избранного: ':'В избранное: ')+c.brand+' '+c.model);});
+  $$('[data-compare]').forEach(b=>{const c=carById(b.dataset.compare);if(!c)return;const selected=state.compare.includes(c.id);b.setAttribute('aria-pressed',String(selected));b.setAttribute('aria-label',(selected?'Убрать из сравнения: ':'В сравнение: ')+c.brand+' '+c.model);const span=b.querySelector('span');if(span)span.textContent=selected?'В сравнении':'Сравнить';});
+  const visible=state.compare.length>0&&route!=='compare';$('#compare-bar').hidden=!visible;document.body.classList.toggle('has-compare',visible);
+  $('#compare-preview').innerHTML=state.compare.map(id=>`<img src="${photo(carById(id))}" alt="">`).join('');
+  $('#compare-bar-label').textContent='Сравнение · '+state.compare.length+' / 3';
+  const link=$('#compare-bar-link');link.classList.toggle('disabled',state.compare.length<2);link.setAttribute('aria-disabled',String(state.compare.length<2));link.tabIndex=state.compare.length<2?-1:0;
+ }
+ function toggleFavorite(id){if(!validIds.has(id))return;const had=state.favorites.includes(id);state.favorites=had?state.favorites.filter(x=>x!==id):[...state.favorites,id];save();if(route==='favorites')renderFavorites();if(route==='catalog'&&filters.favorites)renderCatalog();syncWidgets();toast(had?'Убрано из избранного':'Легенда добавлена в избранное');}
+ function toggleCompare(id){if(!validIds.has(id))return;const had=state.compare.includes(id);if(!had&&state.compare.length===3){toast('В сравнении уже три машины. Убери одну, чтобы добавить другую.');return;}state.compare=had?state.compare.filter(x=>x!==id):[...state.compare,id];save();if(route==='compare')renderCompare();syncWidgets();toast(had?'Убрано из сравнения':'Добавлено в сравнение · '+state.compare.length+' / 3');}
+ function filterCars(){let result=cars.filter(c=>(!filters.brands.length||filters.brands.includes(c.brand))&&c.price<=filters.budget&&(filters.drive==='all'||c.drive===filters.drive)&&(filters.status==='all'||c.status===filters.status)&&(filters.decade==='all'||Math.floor(c.year/10)*10===Number(filters.decade))&&(!filters.favorites||state.favorites.includes(c.id))&&(!filters.q||[c.brand,c.model,c.code,c.engine,c.version,c.description].join(' ').toLocaleLowerCase().includes(filters.q.toLocaleLowerCase())));
+  const sorts={'price-asc':(a,b)=>a.price-b.price,'price-desc':(a,b)=>b.price-a.price,'year-desc':(a,b)=>b.year-a.year,'power-desc':(a,b)=>b.power-a.power,'mileage-asc':(a,b)=>a.mileage-b.mileage};if(sorts[filters.sort])result.sort(sorts[filters.sort]);return result;
+ }
+ function parseFilters(params){filters={brands:(params.get('brand')||'').split(',').filter(b=>brands.includes(b)),budget:Math.min(220000,Math.max(30000,Number(params.get('budget'))||220000)),drive:['AWD','RWD'].includes(params.get('drive'))?params.get('drive'):'all',status:['stock','order','reserved'].includes(params.get('status'))?params.get('status'):'all',decade:['1980','1990','2000'].includes(params.get('decade'))?params.get('decade'):'all',q:(params.get('q')||'').slice(0,100),sort:['curated','price-asc','price-desc','year-desc','power-desc','mileage-asc'].includes(params.get('sort'))?params.get('sort'):'curated',favorites:params.get('favorites')==='1'};}
+ function filterUrl(){const p=new URLSearchParams();if(filters.brands.length)p.set('brand',filters.brands.join(','));if(filters.budget<220000)p.set('budget',filters.budget);if(filters.drive!=='all')p.set('drive',filters.drive);if(filters.status!=='all')p.set('status',filters.status);if(filters.decade!=='all')p.set('decade',filters.decade);if(filters.q)p.set('q',filters.q);if(filters.sort!=='curated')p.set('sort',filters.sort);if(filters.favorites)p.set('favorites','1');const q=p.toString();history.replaceState(null,'',location.pathname+location.search+'#/catalog'+(q?'?'+q:''));}
+ function syncFilterInputs(){
+  $('#brand-filters').innerHTML=brands.map(b=>`<label class="brand-checkbox"><input type="checkbox" data-brand="${b}" ${filters.brands.includes(b)?'checked':''}>${b}<span>${cars.filter(c=>c.brand===b).length}</span></label>`).join('');
+  $('#filter-budget').value=filters.budget;$('#budget-output').textContent=money(filters.budget);$$('input[name=drive]').forEach(i=>i.checked=i.value===filters.drive);$('#filter-status').value=filters.status;$('#filter-decade').value=filters.decade;$('#catalog-search').value=filters.q;$('#catalog-sort').value=filters.sort;$('#only-favorites').setAttribute('aria-pressed',String(filters.favorites));
+ }
+ function renderCatalog(){const list=filterCars();$('#catalog-count').textContent='НАЙДЕНО: '+list.length+' / '+cars.length;$('#catalog-grid').innerHTML=list.length?list.map(card).join(''):`<div class="empty-state"><span class="empty-icon">↗</span><h2>Такая легенда пока не найдена.</h2><p>Попробуй другой бюджет, марку или поисковый запрос.</p><button class="primary-button" type="button" data-reset-filters>СБРОСИТЬ ФИЛЬТРЫ <span>↻</span></button></div>`;
+  const chips=filters.brands.map(b=>({key:'brand',value:b,label:b}));if(filters.budget<220000)chips.push({key:'budget',label:'До '+money(filters.budget)});if(filters.drive!=='all')chips.push({key:'drive',label:filters.drive});if(filters.status!=='all')chips.push({key:'status',label:statusNames[filters.status]});if(filters.decade!=='all')chips.push({key:'decade',label:filters.decade+'-е'});if(filters.q)chips.push({key:'q',label:'Поиск: '+filters.q});if(filters.favorites)chips.push({key:'favorites',label:'Избранное'});
+  $('#active-filters').innerHTML=chips.map(c=>`<button type="button" class="filter-chip" data-clear-filter="${c.key}" data-value="${esc(c.value||'')}">${esc(c.label)} <span aria-hidden="true">×</span></button>`).join('');
+ }
+ function refreshCatalog(){filterUrl();$('#budget-output').textContent=money(filters.budget);$('#only-favorites').setAttribute('aria-pressed',String(filters.favorites));renderCatalog();syncWidgets();}
+ function resetFilters(){parseFilters(new URLSearchParams());syncFilterInputs();refreshCatalog();}
+ function pageTitle(eyebrow,title,outline,description=''){return `<div class="page-title"><div><p class="eyebrow muted">${eyebrow}</p><h1>${title}<br><span class="outline">${outline}</span></h1></div>${description?`<p>${description}</p>`:''}</div>`;}
+ function renderFavorites(){const selected=cars.filter(c=>state.favorites.includes(c.id));$('#favorites-view').innerHTML='<div class="breadcrumb"><a href="#/">Главная</a><span>/</span>Избранное</div>'+pageTitle('YOUR PERSONAL SHORTLIST','KEEP IT','CLOSE.','Сюда попадают машины,<br>к которым хочется вернуться.')+(selected.length?`<div class="favorites-header"><span>ТВОЯ ПОДБОРКА · ${selected.length}</span><button type="button" data-clear-favorites>Очистить избранное</button></div><div class="car-grid">${selected.map(card).join('')}</div>`:empty('Пока ни одной.<br>Но это ненадолго.','Нажимай на сердце в карточке — и твои любимые легенды будут здесь.'));}
+ function detailPanel(c,tab){if(tab==='history')return `<h2>История ${c.code}</h2><p>${c.story}</p>${c.source?`<a class="text-link" href="${c.source}" target="_blank" rel="noopener noreferrer">ИСТОРИЯ У ПРОИЗВОДИТЕЛЯ <span>↗</span></a>`:''}`;if(tab==='inspection')return `<h2>Что проверить перед покупкой</h2><p>${c.watch}</p><p style="margin-top:17px">Отчёт по конкретному экземпляру здесь не предоставлен. Фотографии, демонстрационный пробег и статус не заменяют диагностику и проверку документов.</p><a class="text-link" href="#/contact?purpose=inspection&car=${c.id}">ПОДГОТОВИТЬ ВОПРОСЫ К ОСМОТРУ <span>↗</span></a>`;return `<h2>${c.character}</h2><p>${c.description}</p><div class="detail-features">${c.features.map(f=>`<span>${f}</span>`).join('')}</div>`;}
+ function renderDetail(id){const c=carById(id);if(!c)return false;currentCar=c;const specs=[['ГОД',c.year],['ПРОБЕГ · ДЕМО',number(c.mileage)+' км'],['ДВИГАТЕЛЬ',c.engine],['МОЩНОСТЬ',c.power+' PS'],['ПРИВОД',c.drive],['КПП',c.transmission]];
+  $('#detail-view').innerHTML=`<div class="breadcrumb"><a href="#/">Главная</a><span>/</span><a href="#/catalog">Коллекция</a><span>/</span>${c.brand} ${c.model}</div><div class="detail-heading"><div><p class="micro">${c.brand.toUpperCase()} / ${c.code} / ${c.tag}</p><h1>${c.model}</h1><p>${c.version} · ${c.year}</p></div><span class="car-badge ${c.status}">${statusNames[c.status]} / ДЕМО</span></div><div class="detail-layout"><div class="detail-main"><div class="detail-photo"><button type="button" data-lightbox="${c.id}" aria-label="Увеличить фото ${esc(c.model)}"><img src="${photo(c)}" alt="${c.brand} ${c.model} ${c.code} — фото модели" width="1100" height="733"><span class="photo-enlarge">РАССМОТРЕТЬ ↗</span></button></div><p class="photo-caption">ФОТО МОДЕЛИ. ВЕРСИЯ И КОМПЛЕКТАЦИЯ МОГУТ ОТЛИЧАТЬСЯ. <a href="#/credits">АВТОР И ЛИЦЕНЗИЯ ↗</a></p><div class="detail-tabs" role="tablist" aria-label="Об автомобиле"><button type="button" class="active" role="tab" id="tab-character" aria-selected="true" aria-controls="detail-panel" data-detail-tab="character">Характер</button><button type="button" role="tab" id="tab-history" aria-selected="false" aria-controls="detail-panel" data-detail-tab="history" tabindex="-1">История модели</button><button type="button" role="tab" id="tab-inspection" aria-selected="false" aria-controls="detail-panel" data-detail-tab="inspection" tabindex="-1">Перед покупкой</button></div><div class="detail-panel" id="detail-panel" role="tabpanel" aria-labelledby="tab-character">${detailPanel(c,'character')}</div><div class="detail-share-row"><button type="button" class="share-button" data-share="${c.id}">↗ СКОПИРОВАТЬ ССЫЛКУ</button><a href="#/catalog">← В КОЛЛЕКЦИЮ</a></div></div><aside class="detail-purchase"><span class="purchase-label">ДЕМОНСТРАЦИОННАЯ ЦЕНА</span><p class="purchase-price">${money(c.price)}</p><dl class="detail-spec-grid">${specs.map(s=>`<div><dt>${s[0]}</dt><dd>${s[1]}</dd></div>`).join('')}</dl><a class="primary-button" href="#/contact?car=${c.id}&purpose=viewing">${c.status==='reserved'?'ОБСУДИТЬ ПОХОЖУЮ МОДЕЛЬ':'ЗАПРОС НА ПРОСМОТР'} <span>↗</span></a><div class="detail-action-row"><button class="secondary-button" type="button" data-favorite="${c.id}" aria-pressed="${state.favorites.includes(c.id)}">${heart} В избранное</button><button class="secondary-button" type="button" data-compare="${c.id}" aria-pressed="${state.compare.includes(c.id)}">${compareIcon}<span>Сравнить</span></button></div><p class="purchase-note">Это концепт-лот. Цена, пробег и наличие вымышлены. Характеристики указаны для справки и могут отличаться по рынку и версии. Договор, проверка и итоговая стоимость требуют отдельного согласования.</p></aside></div><section class="detail-bottom"><h2>THE STORY CONTINUES.</h2><div class="car-grid">${cars.filter(other=>other.id!==c.id).slice(0,3).map(card).join('')}</div></section>`;
+  return true;
+ }
+ function renderCompare(){const list=state.compare.map(carById).filter(Boolean);let content='<div class="breadcrumb"><a href="#/">Главная</a><span>/</span>Сравнение</div>'+pageTitle('DIFFERENT MACHINES. YOUR DECISION.','SIDE BY','SIDE.','Оставь эмоции.<br>Поставь факты рядом.');
+  if(!list.length){$('#compare-view').innerHTML=content+empty('Рядом пока пусто.','Добавь до трёх машин кнопкой «Сравнить» в каталоге.');return;}
+  const rows=[['Цена · демо',c=>money(c.price),'price'],['Год',c=>c.year],['Пробег · демо',c=>number(c.mileage)+' км','mileage'],['Двигатель',c=>c.engine],['Рабочий объём',c=>c.displacement],['Мощность',c=>c.power+' PS','power'],['Привод',c=>c.drive],['Коробка',c=>c.transmission],['Кузов',c=>c.body],['Наличие · демо',c=>statusNames[c.status]],['Версия',c=>c.version]];
+  content+=`<div class="compare-controls"><p>${list.length} / 3 МАШИНЫ · ${list.length<2?'ДОБАВЬ ЕЩЁ ОДНУ ДЛЯ СРАВНЕНИЯ':'ПАРАМЕТРЫ В ОДНОМ МЕСТЕ'}</p><div><a class="text-link" href="#/catalog">ДОБАВИТЬ АВТОМОБИЛЬ <span>＋</span></a> <button type="button" data-clear-compare>Очистить сравнение</button></div></div><div class="compare-table-scroll" tabindex="0" aria-label="Таблица сравнения автомобилей, прокручивается горизонтально"><table class="compare-table"><thead><tr><th scope="col">ТВОЙ ВЫБОР</th>${list.map(c=>`<th scope="col"><div class="compare-car"><img src="${photo(c)}" alt="${c.brand} ${c.model}"><button class="compare-remove" type="button" data-compare="${c.id}" aria-label="Убрать из сравнения: ${c.brand} ${c.model}">×</button><h2>${c.brand}<br>${c.model}</h2><p class="micro">${c.code} / ${c.version}</p><a class="text-link" href="#/car/${c.id}">ПОДРОБНЕЕ <span>↗</span></a></div></th>`).join('')}</tr></thead><tbody>${rows.map(([name,get,key])=>`<tr><th scope="row">${name}</th>${list.map(c=>{const best=list.length>1&&key&&c[key]===(key==='power'?Math.max(...list.map(x=>x[key])):Math.min(...list.map(x=>x[key])));return `<td class="${best?'best ':''}${key==='price'?'value-price':''}">${get(c)}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div><p class="compare-notice">Подсветка показывает меньшие цену и пробег, большую мощность среди выбранных машин. Цена и пробег — вымышленные примеры. Справочные параметры не заменяют проверку конкретного экземпляра.</p>`;
+  $('#compare-view').innerHTML=content;
+ }
+ function localDay(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+ function renderContactCar(){const c=carById($('#request-car').value);$('#contact-car').innerHTML=c?`<a class="contact-car-card" href="#/car/${c.id}"><img src="${photo(c)}" alt=""><div><h3>${c.brand} ${c.model}</h3><p>${c.code} / ${c.version}<br>${money(c.price)} · демо</p></div></a>`:'';}
+ function openContact(params){$('#request-form').hidden=false;$('#request-success').hidden=true;const form=$('#request-form');form.reset();$('#request-car').innerHTML='<option value="">Ещё выбираю / своя модель</option>'+cars.map(c=>`<option value="${c.id}">${c.brand} ${c.model} ${c.code}</option>`).join('');$('#request-purpose').value=purposes[params.get('purpose')]?params.get('purpose'):'viewing';$('#request-car').value=validIds.has(params.get('car'))?params.get('car'):'';$('#request-date').min=localDay();$('#request-date').setCustomValidity('');$('#request-name').setCustomValidity('');$('#request-contact').setCustomValidity('');updateContactChannel();renderContactCar();renderRequests();}
+ function updateContactChannel(){const phone=$('#request-channel').value==='phone';const input=$('#request-contact');input.type=phone?'tel':'email';input.autocomplete=phone?'tel':'email';input.placeholder=phone?'+39 ...':'you@example.com';$('#contact-field-label').textContent=phone?'Телефон / мессенджер *':'Твой email *';input.setCustomValidity('');}
+ function formatDate(v){if(!v)return 'По согласованию';const d=new Date(v+'T12:00:00');return isNaN(d)?'По согласованию':new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d);}
+ function requestText(r){const c=carById(r.car);return `NOCTURNE MOTORS — ЧЕРНОВИК ЗАЯВКИ\n${r.id}\n\nВажно: заявка не отправлена дилеру, запись и бронирование не подтверждены.\n\nЗапрос: ${purposes[r.purpose]||r.purpose}\nАвтомобиль: ${c?c.brand+' '+c.model+' '+c.code:'Ещё выбираю'}\nИмя: ${r.name}\nКонтакт: ${r.contact}\nСпособ связи: ${r.channel==='phone'?'Телефон / мессенджер':'Email'}\nБюджет: ${r.budget}\nЖелаемая дата: ${formatDate(r.date)}\nВремя: ${r.time}\nКомментарий: ${r.message||'Нет'}\n\nСоздано: ${new Intl.DateTimeFormat('ru-RU',{dateStyle:'long',timeStyle:'short'}).format(new Date(r.created))}\n`;
+ }
+ function downloadRequest(id){const r=state.requests.find(x=>x.id===id);if(!r)return;const blob=new Blob(['\uFEFF'+requestText(r)],{type:'text/plain;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='NOCTURNE-'+r.id+'.txt';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Черновик заявки подготовлен к скачиванию');}
+ function renderRequests(){const host=$('#saved-requests');if(!state.requests.length){host.innerHTML='';return;}host.innerHTML='<h2>Мои черновики заявок</h2>'+state.requests.map(r=>{const c=carById(r.car);return `<article class="request-row"><div><strong>${esc(purposes[r.purpose]||'Заявка')} · ${esc(r.id)}</strong><p>${c?esc(c.brand+' '+c.model):'Автомобиль ещё не выбран'}</p></div><div><strong>${esc(r.name)}</strong><p>${formatDate(r.date)} · ${esc(r.time||'По согласованию')}<br>Сохранено только на этом устройстве</p></div><div class="request-row-actions"><button type="button" data-download-request="${esc(r.id)}">СКАЧАТЬ ↗</button><button type="button" data-delete-request="${esc(r.id)}" aria-label="Удалить черновик ${esc(r.id)}">×</button></div></article>`;}).join('');}
+ $('#request-form').addEventListener('submit',e=>{e.preventDefault();const form=e.currentTarget;const data=new FormData(form);const name=String(data.get('name')).trim(),contact=String(data.get('contact')).trim();$('#request-name').setCustomValidity(name?'':'Введи имя.');const isPhone=data.get('channel')==='phone';$('#request-contact').setCustomValidity(isPhone&&!/^[+\d\s().-]{6,35}$/.test(contact)?'Введи номер телефона с кодом страны.':'');const date=String(data.get('date')||'');$('#request-date').setCustomValidity(date&&date<localDay()?'Выбери сегодняшнюю или будущую дату.':'');if(!form.reportValidity())return;
+  const r={id:'NCT-'+Date.now().toString(36).toUpperCase(),created:new Date().toISOString(),purpose:String(data.get('purpose')),car:String(data.get('car')||''),name,contact,channel:String(data.get('channel')),budget:String(data.get('budget')),date,time:String(data.get('time')),message:String(data.get('message')||'').trim()};state.requests.unshift(r);state.requests=state.requests.slice(0,20);lastRequest=r;save();form.hidden=true;$('#request-success').hidden=false;$('#request-success').innerHTML=`<div class="request-success"><span class="success-symbol">✓</span><span class="micro">${r.id} / LOCAL DRAFT</span><h2>Твой запрос<br>теперь в деталях.</h2><p>Черновик сохранён на этом устройстве. Скачай его, чтобы передать продавцу. Заявка не отправлена, просмотр не подтверждён.</p><button class="primary-button dark-button" type="button" data-download-request="${r.id}">СКАЧАТЬ ЗАЯВКУ <span>↓</span></button><button class="secondary-button" type="button" id="new-request">Подготовить ещё одну</button></div>`;renderRequests();$('#request-success').scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'center'});toast('Черновик заявки сохранён');});
+ $('#request-name').addEventListener('input',()=>$('#request-name').setCustomValidity(''));
+ $('#request-contact').addEventListener('input',()=>$('#request-contact').setCustomValidity(''));
+ $('#request-date').addEventListener('input',()=>$('#request-date').setCustomValidity(''));
+ $('#request-car').addEventListener('change',renderContactCar);$('#request-channel').addEventListener('change',updateContactChannel);
+ async function renderCredits(){const host=$('#credits-view');host.innerHTML='<div class="breadcrumb"><a href="#/">Главная</a><span>/</span>Источники</div>'+pageTitle('REAL CARS. CREDIT WHERE IT’S DUE.','THE','SOURCES.','Фото, история<br>и уважение к авторам.')+'<p class="credits-intro">В каталоге использованы фотографии соответствующих моделей из Wikimedia Commons. Это иллюстрации, а не фотографии вымышленных автомобилей в продаже. Версия, цвет, год и оборудование на снимке могут отличаться от карточки. Изображения опубликованы без изменений; кадрирование выполняется только при отображении.</p><div class="credits-grid" id="photo-credits"><p>Загружаем сведения об авторах...</p></div><div class="sources-list"><h2>История и справочные данные</h2>'+cars.filter(c=>c.source).map(c=>`<a href="${c.source}" target="_blank" rel="noopener noreferrer">${c.brand} ${c.model} — материалы производителя ↗</a>`).join('')+'<a href="./assets/FONT-LICENSES.txt" target="_blank" rel="noopener noreferrer">Лицензии локальных шрифтов ↗</a><p class="credits-intro">Заводские характеристики приведены для справки. Цены, пробег, наличие и данные концепт-лотов вымышлены. Восьмёрка машин — редакционная подборка, а не фактический склад.</p></div>';
+  try{const response=await fetch('./assets/cars/credits.json');if(!response.ok)throw Error();const entries=await response.json();const grid=$('#photo-credits');if(!grid)return;grid.innerHTML=entries.map(e=>`<article class="credit-card"><img src="./assets/cars/${esc(e.file)}" alt="${esc(e.title)}" loading="lazy"><h2>${esc(e.title)}</h2><p>Автор: ${esc(e.author||'См. страницу источника')}<br>Лицензия: ${e.licenseUrl?`<a href="${esc(e.licenseUrl)}" target="_blank" rel="noopener noreferrer">${esc(e.license)}</a>`:esc(e.license)}<br><a href="${esc(e.source)}" target="_blank" rel="noopener noreferrer">Оригинал и сведения об авторе ↗</a></p></article>`).join('');}catch(_){const grid=$('#photo-credits');if(grid)grid.innerHTML='<p>Не удалось загрузить список. <a href="./assets/cars/credits.json">Открыть сведения об изображениях ↗</a></p>';}
+ }
+ const reducedMotion=()=>document.documentElement.classList.contains('motion-reduced')||matchMedia('(prefers-reduced-motion: reduce)').matches;
+ function closeMenu(){const menu=$('#mobile-menu');menu.hidden=true;$('#menu-toggle').setAttribute('aria-expanded','false');$('#menu-toggle').setAttribute('aria-label','Открыть меню');document.body.classList.remove('menu-open');}
+ function navigate(){if(location.hash==='#main-content')return;let hash=location.hash.replace(/^#/,'')||'/';if(!hash.startsWith('/'))hash='/';const [path,query='']=hash.split('?'),parts=path.split('/').filter(Boolean),params=new URLSearchParams(query);route=parts[0]||'home';closeMenu();$$('.page-view').forEach(v=>v.hidden=true);let view=route+'-view';let title='NOCTURNE MOTORS — Japanese Legends';
+  if(route==='catalog'){parseFilters(params);syncFilterInputs();renderCatalog();title='Коллекция японских легенд — NOCTURNE MOTORS';}
+  else if(route==='car'){view='detail-view';if(!renderDetail(parts[1])){view='notfound-view';route='notfound';}else title=currentCar.brand+' '+currentCar.model+' — NOCTURNE MOTORS';}
+  else if(route==='favorites'){renderFavorites();title='Избранное — NOCTURNE MOTORS';}
+  else if(route==='compare'){renderCompare();title='Сравнение автомобилей — NOCTURNE MOTORS';}
+  else if(route==='contact'){openContact(params);title='Твоя заявка — NOCTURNE MOTORS';}
+  else if(route==='credits'){renderCredits();title='Источники и фотографии — NOCTURNE MOTORS';}
+  else if(route==='services')title='Подбор и привоз — NOCTURNE MOTORS';
+  else if(route!=='home'){view='notfound-view';route='notfound';title='Страница не найдена — NOCTURNE MOTORS';}
+  const target=document.getElementById(view);target.hidden=false;document.title=title;$$('[data-nav]').forEach(a=>{const selected=a.dataset.nav===route;a.classList.toggle('active',selected);if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});syncWidgets();
+  if(route==='home'&&['story','collection'].includes(params.get('section')))requestAnimationFrame(()=>document.getElementById(params.get('section')).scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'}));else window.scrollTo({top:0,behavior:'instant'});
+ }
+ $('#catalog-search').maxLength=100;
+ $('#catalog-search').addEventListener('input',e=>{filters.q=e.target.value.trim();refreshCatalog();});
+ $('#catalog-sort').addEventListener('change',e=>{filters.sort=e.target.value;refreshCatalog();});
+ $('#filter-budget').addEventListener('input',e=>{filters.budget=Number(e.target.value);refreshCatalog();});
+ $('#filter-status').addEventListener('change',e=>{filters.status=e.target.value;refreshCatalog();});
+ $('#filter-decade').addEventListener('change',e=>{filters.decade=e.target.value;refreshCatalog();});
+ $('#only-favorites').addEventListener('click',()=>{filters.favorites=!filters.favorites;refreshCatalog();});
+ document.addEventListener('change',e=>{if(e.target.matches('[data-brand]')){const b=e.target.dataset.brand;filters.brands=e.target.checked?[...new Set([...filters.brands,b])]:filters.brands.filter(x=>x!==b);refreshCatalog();}if(e.target.matches('input[name=drive]')){filters.drive=e.target.value;refreshCatalog();}});
+ $('#menu-toggle').addEventListener('click',()=>{const expanded=$('#menu-toggle').getAttribute('aria-expanded')==='true';if(expanded)closeMenu();else{$('#mobile-menu').hidden=false;$('#menu-toggle').setAttribute('aria-expanded','true');$('#menu-toggle').setAttribute('aria-label','Закрыть меню');document.body.classList.add('menu-open');}});
+ $('#back-top').addEventListener('click',()=>window.scrollTo({top:0,behavior:reducedMotion()?'auto':'smooth'}));
+ let lightboxFocus=null;const lightbox=$('#lightbox');
+ function closeLightbox(){lightbox.close();}
+ $('#lightbox-close').addEventListener('click',closeLightbox);lightbox.addEventListener('close',()=>{document.body.classList.remove('dialog-open');if(lightboxFocus)lightboxFocus.focus({preventScroll:true});});
+ document.addEventListener('click',async e=>{const favorite=e.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}const compare=e.target.closest('[data-compare]');if(compare){toggleCompare(compare.dataset.compare);return;}const reset=e.target.closest('[data-reset-filters]');if(reset){resetFilters();return;}const chip=e.target.closest('[data-clear-filter]');if(chip){const key=chip.dataset.clearFilter;if(key==='brand')filters.brands=filters.brands.filter(b=>b!==chip.dataset.value);else filters[key]=key==='budget'?220000:key==='q'?'':key==='favorites'?false:'all';syncFilterInputs();refreshCatalog();return;}
+  const home=e.target.closest('[data-home-filter]');if(home){homeFilter=home.dataset.homeFilter;$$('[data-home-filter]').forEach(b=>{const on=b===home;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderFeatured();syncWidgets();return;}
+  if(e.target.closest('[data-clear-compare]')){state.compare=[];save();if(route==='compare')renderCompare();syncWidgets();return;}
+  if(e.target.closest('[data-clear-favorites]')){state.favorites=[];save();renderFavorites();syncWidgets();return;}
+  const tab=e.target.closest('[data-detail-tab]');if(tab&&currentCar){$$('[data-detail-tab]').forEach(b=>{const on=b===tab;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});$('#detail-panel').innerHTML=detailPanel(currentCar,tab.dataset.detailTab);$('#detail-panel').setAttribute('aria-labelledby',tab.id);return;}
+  const zoom=e.target.closest('[data-lightbox]');if(zoom){const c=carById(zoom.dataset.lightbox);if(!c)return;lightboxFocus=zoom;$('#lightbox-title').textContent=c.brand+' '+c.model+' / '+c.code;$('#lightbox-image').src=photo(c);$('#lightbox-image').alt=c.brand+' '+c.model+' — фото модели';document.body.classList.add('dialog-open');lightbox.showModal();return;}
+  const share=e.target.closest('[data-share]');if(share){const url=location.href.split('#')[0]+'#/car/'+share.dataset.share;try{await navigator.clipboard.writeText(url);toast('Ссылка на автомобиль скопирована');}catch(_){toast('Скопируй ссылку из адресной строки браузера.');}return;}
+  const download=e.target.closest('[data-download-request]');if(download){downloadRequest(download.dataset.downloadRequest);return;}
+  const remove=e.target.closest('[data-delete-request]');if(remove){state.requests=state.requests.filter(r=>r.id!==remove.dataset.deleteRequest);save();renderRequests();if(lastRequest?.id===remove.dataset.deleteRequest){$('#request-form').hidden=false;$('#request-success').hidden=true;}toast('Черновик удалён с этого устройства');return;}
+  if(e.target.closest('#new-request')){openContact(new URLSearchParams());$('#request-form').scrollIntoView({behavior:'smooth',block:'start'});return;}
+  if(e.target.closest('#mobile-menu a'))closeMenu();
+  const link=e.target.closest('a[aria-disabled=true]');if(link)e.preventDefault();
+ });
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu();const tabs=$$('[data-detail-tab]');const i=tabs.indexOf(document.activeElement);if(i!==-1&&['ArrowRight','ArrowLeft','Home','End'].includes(e.key)){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[next].focus();tabs[next].click();}});
+ addEventListener('hashchange',navigate);
+ addEventListener('storage',e=>{if(e.key!==storeKey)return;try{const update=JSON.parse(e.newValue||'{}');state.favorites=cleanIds(update.favorites);state.compare=cleanIds(update.compare).slice(0,3);if(route==='favorites')renderFavorites();if(route==='compare')renderCompare();if(route==='catalog')renderCatalog();syncWidgets();}catch(_){}});
+ $('#filters-details').open=window.innerWidth>900;
+ renderFeatured();navigate();
 })();
