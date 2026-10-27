@@ -68,6 +68,7 @@
     { key: 'character', title: 'И последнее: что должно зацепить?', hint: 'Это редакционный подбор по ответам, а не оценка состояния машин.', options: [['rally', 'Раллийная энергия', 'В первую очередь Evo и Impreza.'], ['supercar', 'Суперкарная эстетика', 'Среднемоторная NSX.'], ['analog', 'Аналоговый характер', 'Trueno, Silvia и RX-7.'], ['icon', 'Тот самый культовый силуэт', 'Skyline и Supra.'], ['any', 'Хочу своё совпадение', 'Без дополнительного предпочтения.']] }
   ];
   function sanitizeAnswers(input = {}) {
+    if (!record(input)) input = {};
     return Object.fromEntries(questions.flatMap(q => q.options.some(o => o[0] === input[q.key]) ? [[q.key, input[q.key]]] : []));
   }
   function rankCars(cars, input) {

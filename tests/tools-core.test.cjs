@@ -47,6 +47,7 @@ test('backup sanitization rejects unknown cars, invalid fields and executable se
   assert.deepEqual(cleaned.pinned,['skyline-r34']);assert.equal(Object.keys(cleaned.notes).length,1);
   assert.equal(cleaned.notes['skyline-r34'].text.length,2000);assert.equal(cleaned.notes['skyline-r34'].rating,5);assert.equal(cleaned.notes['skyline-r34'].status,'research');
   assert.deepEqual(cleaned.checks['skyline-r34'],{identity:'ok'});assert.equal(cleaned.searches.length,1);
+  for(const answers of [null, [], 'invalid', 42]) assert.deepEqual(T.cleanWorkspace({answers},cars.map(c=>c.id)).answers,{});
 });
 test('CSV export quotes delimiters and prevents leading formula execution', () => {
   const output=T.csv([['Модель','Цена'],['a;"b"', '=SUM(A1:A2)']]);
