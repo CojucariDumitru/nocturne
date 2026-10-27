@@ -2,6 +2,16 @@
 
 A complete static dealership concept for eight Japanese icons. Published at https://cojucaridumitru.github.io/nocturne/ through GitHub Pages (`main`, repository root). This replaces the original NOCTURNE audiovisual landing page while retaining its film and original Web Audio experience.
 
+## Drift Division identity
+
+A complete dark motorsport redesign: original night-drift hero, oversized kinetic typography, pointer/scroll motion, moving city ticker, material vehicle cards and consistent dark tools. Accent sections use acid lime with dark lettering. Original film/audio, catalogue, garage, finder, comparison, budgets, notes and request drafts remain available.
+
+The new Drift Atlas route (#/drift) contains ten researched venues across six regions. Region controls, organizer links, approximate city markers, per-venue share URLs and a device-local wishlist work on both the homepage and dedicated atlas. The wishlist has a UTF-8 text export and lives separately under nocturne-drift-passport-v1.
+
+The Formula DRIFT chapter is explicitly an **unofficial collaboration concept**, with source links and an original interactive tandem diagram. Angle, distance, pause and reduced-motion controls affect a visual study, not a physics or telemetry simulation. The quoted qualification point maxima are labelled PRO 2026. No official partnership, ticket access or future event schedule is asserted.
+
+Source and visual provenance, generation prompt and venue reference links are in ASSET_NOTES.md. drift-data.js contains the verified editorial data; drift.js manages atlas routes, wishlist, sharing and the motion study; drift.css applies the new identity.
+
 ## Pages and interactions
 
 - Cinematic homepage and featured collection with drivetrain tabs.
@@ -42,3 +52,6 @@ Model photography: Wikimedia Commons; each author, file page and license is reco
 Run `node --test tests/tools-core.test.cjs` (Node 18+) for eight domain tests covering aliases, combined filters, preference ranking, hand-checked ownership arithmetic, numeric bounds, backup sanitization, CSV escaping and model-specific checklist entries. JavaScript syntax and asset references are checked separately.
 
 Browser QA covers notes/status/rating persistence; alias command search; advanced mileage/body/power filters; list view and quick preview; saved searches; the complete five-question flow and resumed results; a saved/reopened €57,000 first-year budget; persisted checklist progress/questions; shared comparison state, difference-only rows and column ordering; downloaded CSV and JSON content; merge import preserving newer notes and rejection of the wrong backup format. Mobile layouts at 320/390 CSS pixels have no page overflow; the mobile search closes navigation before opening its dialog. Original request/favourites/credits flows were checked in the dealership release. Product assets and deployment are verified at publication.
+
+
+Drift redesign QA: ten venue entries, region/map selection, a wishlist preserved after reload, a downloaded two-venue export, a venue share URL and command search; tandem angle/gap controls, pause, reduced motion; catalogue alias search, quick view and garage pinning. The home, atlas, Formula chapter, catalogue, vehicle detail and garage were inspected at 320/390 CSS pixels without page overflow. Domain tests from the workbench release continue to pass. JavaScript syntax, local assets and duplicate HTML IDs are checked before publishing.

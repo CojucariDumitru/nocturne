@@ -97,7 +97,7 @@
   else if(extraRoutes.has(route)){const extension=extraRoutes.get(route);extension.render(params);title=extension.title+' — NOCTURNE MOTORS';}
   else if(route!=='home'){view='notfound-view';route='notfound';title='Страница не найдена — NOCTURNE MOTORS';}
   const target=document.getElementById(view);target.hidden=false;document.title=title;$$('[data-nav]').forEach(a=>{const selected=a.dataset.nav===route;a.classList.toggle('active',selected);if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});syncWidgets();
-  if(route==='home'&&['story','collection'].includes(params.get('section')))requestAnimationFrame(()=>document.getElementById(params.get('section')).scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'}));else window.scrollTo({top:0,behavior:'instant'});
+  if(route==='home'&&['story','collection','drift-culture','formula'].includes(params.get('section')))requestAnimationFrame(()=>document.getElementById(params.get('section')).scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'}));else window.scrollTo({top:0,behavior:'instant'});
   window.dispatchEvent(new CustomEvent('nocturne:route',{detail:{route,car:route==='car'?currentCar?.id:null}}));
  }
  $('#catalog-search').maxLength=100;
