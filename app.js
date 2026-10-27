@@ -20,9 +20,10 @@
  let toastTimer;
  function toast(text){const box=$('#toast');box.textContent=text;box.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>box.classList.remove('show'),3000);}
  let route='home',currentCar=null,homeFilter='all',lastRequest=null;
- let filters={brands:[],budget:220000,drive:'all',status:'all',decade:'all',q:'',sort:'curated',favorites:false};
+ const extraRoutes=new Map();
+ let filters={brands:[],budget:220000,drive:'all',status:'all',decade:'all',q:'',sort:'curated',favorites:false,body:'all',mileage:200000,power:0};
  const photo=c=>'./assets/cars/'+c.photo+'.jpg';
- function card(c){const fav=state.favorites.includes(c.id),comp=state.compare.includes(c.id);return `<article class="car-card" data-car="${c.id}"><div class="car-image-wrap"><a class="car-image-link" href="#/car/${c.id}" aria-label="Подробнее: ${esc(c.brand+' '+c.model)}"><img src="${photo(c)}" alt="${esc(c.brand+' '+c.model+' '+c.code)} — фото модели" loading="lazy" width="1100" height="733"></a><span class="car-badge ${c.status}">${statusNames[c.status]}</span><button class="car-heart" type="button" data-favorite="${c.id}" aria-pressed="${fav}" aria-label="${fav?'Убрать из избранного:':'В избранное:'} ${esc(c.brand+' '+c.model)}">${heart}</button><span class="car-image-code">${c.code} / ${c.tag}</span></div><div class="car-copy"><div class="car-brand"><span>${c.brand}</span><span>${c.year} / ${c.code}</span></div><h3><a href="#/car/${c.id}">${c.model}</a></h3><p class="car-variant">${c.version}</p><div class="car-specs"><span>${number(c.mileage)} км</span><i></i><span>${c.power} PS</span><i></i><span>MT</span><i></i><span>${c.drive}</span></div><div class="car-footer"><span class="car-price">${money(c.price)}<small>ДЕМОНСТРАЦИОННАЯ ЦЕНА</small></span><button class="car-compare" type="button" data-compare="${c.id}" aria-pressed="${comp}" aria-label="${comp?'Убрать из сравнения:':'В сравнение:'} ${esc(c.brand+' '+c.model)}">${compareIcon}<span>${comp?'В сравнении':'Сравнить'}</span></button></div></div></article>`;}
+ function card(c){const fav=state.favorites.includes(c.id),comp=state.compare.includes(c.id);return `<article class="car-card" data-car="${c.id}"><div class="car-image-wrap"><a class="car-image-link" href="#/car/${c.id}" aria-label="Подробнее: ${esc(c.brand+' '+c.model)}"><img src="${photo(c)}" alt="${esc(c.brand+' '+c.model+' '+c.code)} — фото модели" loading="lazy" width="1100" height="733"></a><span class="car-badge ${c.status}">${statusNames[c.status]}</span><button class="car-heart" type="button" data-favorite="${c.id}" aria-pressed="${fav}" aria-label="${fav?'Убрать из избранного:':'В избранное:'} ${esc(c.brand+' '+c.model)}">${heart}</button><span class="car-image-code">${c.code} / ${c.tag}</span><button class="card-quick" type="button" data-quick="${c.id}" aria-label="Быстрый просмотр: ${esc(c.brand+' '+c.model)}">↗</button></div><div class="car-copy"><div class="car-brand"><span>${c.brand}</span><span>${c.year} / ${c.code}</span></div><h3><a href="#/car/${c.id}">${c.model}</a></h3><p class="car-variant">${c.version}</p><div class="car-specs"><span>${number(c.mileage)} км</span><i></i><span>${c.power} PS</span><i></i><span>MT</span><i></i><span>${c.drive}</span></div><div class="car-footer"><span class="car-price">${money(c.price)}<small>ДЕМОНСТРАЦИОННАЯ ЦЕНА</small></span><button class="car-compare" type="button" data-compare="${c.id}" aria-pressed="${comp}" aria-label="${comp?'Убрать из сравнения:':'В сравнение:'} ${esc(c.brand+' '+c.model)}">${compareIcon}<span>${comp?'В сравнении':'Сравнить'}</span></button></div></div></article>`;}
  const empty=(title,text,action='В КОЛЛЕКЦИЮ',href='#/catalog')=>`<div class="empty-state"><span class="empty-icon" aria-hidden="true">↗</span><h2>${title}</h2><p>${text}</p><a class="primary-button" href="${href}">${action}<span>↗</span></a></div>`;
  function renderFeatured(){const list=cars.filter(c=>homeFilter==='all'||c.drive===homeFilter);$('#featured-grid').innerHTML=list.slice(0,6).map(card).join('');}
  function syncWidgets(){
@@ -34,20 +35,20 @@
   $('#compare-preview').innerHTML=state.compare.map(id=>`<img src="${photo(carById(id))}" alt="">`).join('');
   $('#compare-bar-label').textContent='Сравнение · '+state.compare.length+' / 3';
   const link=$('#compare-bar-link');link.classList.toggle('disabled',state.compare.length<2);link.setAttribute('aria-disabled',String(state.compare.length<2));link.tabIndex=state.compare.length<2?-1:0;
+  window.dispatchEvent(new CustomEvent('nocturne:ui',{detail:{route,car:currentCar?.id}}));
  }
  function toggleFavorite(id){if(!validIds.has(id))return;const had=state.favorites.includes(id);state.favorites=had?state.favorites.filter(x=>x!==id):[...state.favorites,id];save();if(route==='favorites')renderFavorites();if(route==='catalog'&&filters.favorites)renderCatalog();syncWidgets();toast(had?'Убрано из избранного':'Легенда добавлена в избранное');}
  function toggleCompare(id){if(!validIds.has(id))return;const had=state.compare.includes(id);if(!had&&state.compare.length===3){toast('В сравнении уже три машины. Убери одну, чтобы добавить другую.');return;}state.compare=had?state.compare.filter(x=>x!==id):[...state.compare,id];save();if(route==='compare')renderCompare();syncWidgets();toast(had?'Убрано из сравнения':'Добавлено в сравнение · '+state.compare.length+' / 3');}
- function filterCars(){let result=cars.filter(c=>(!filters.brands.length||filters.brands.includes(c.brand))&&c.price<=filters.budget&&(filters.drive==='all'||c.drive===filters.drive)&&(filters.status==='all'||c.status===filters.status)&&(filters.decade==='all'||Math.floor(c.year/10)*10===Number(filters.decade))&&(!filters.favorites||state.favorites.includes(c.id))&&(!filters.q||[c.brand,c.model,c.code,c.engine,c.version,c.description].join(' ').toLocaleLowerCase().includes(filters.q.toLocaleLowerCase())));
-  const sorts={'price-asc':(a,b)=>a.price-b.price,'price-desc':(a,b)=>b.price-a.price,'year-desc':(a,b)=>b.year-a.year,'power-desc':(a,b)=>b.power-a.power,'mileage-asc':(a,b)=>a.mileage-b.mileage};if(sorts[filters.sort])result.sort(sorts[filters.sort]);return result;
- }
- function parseFilters(params){filters={brands:(params.get('brand')||'').split(',').filter(b=>brands.includes(b)),budget:Math.min(220000,Math.max(30000,Number(params.get('budget'))||220000)),drive:['AWD','RWD'].includes(params.get('drive'))?params.get('drive'):'all',status:['stock','order','reserved'].includes(params.get('status'))?params.get('status'):'all',decade:['1980','1990','2000'].includes(params.get('decade'))?params.get('decade'):'all',q:(params.get('q')||'').slice(0,100),sort:['curated','price-asc','price-desc','year-desc','power-desc','mileage-asc'].includes(params.get('sort'))?params.get('sort'):'curated',favorites:params.get('favorites')==='1'};}
- function filterUrl(){const p=new URLSearchParams();if(filters.brands.length)p.set('brand',filters.brands.join(','));if(filters.budget<220000)p.set('budget',filters.budget);if(filters.drive!=='all')p.set('drive',filters.drive);if(filters.status!=='all')p.set('status',filters.status);if(filters.decade!=='all')p.set('decade',filters.decade);if(filters.q)p.set('q',filters.q);if(filters.sort!=='curated')p.set('sort',filters.sort);if(filters.favorites)p.set('favorites','1');const q=p.toString();history.replaceState(null,'',location.pathname+location.search+'#/catalog'+(q?'?'+q:''));}
+ function filterCars(){return window.NocturneTools.filterInventory(cars,filters,state.favorites);}
+ function parseFilters(params){filters={brands:(params.get('brand')||'').split(',').filter(b=>brands.includes(b)),budget:Math.min(220000,Math.max(30000,Number(params.get('budget'))||220000)),drive:['AWD','RWD'].includes(params.get('drive'))?params.get('drive'):'all',status:['stock','order','reserved'].includes(params.get('status'))?params.get('status'):'all',decade:['1980','1990','2000'].includes(params.get('decade'))?params.get('decade'):'all',q:(params.get('q')||'').slice(0,100),sort:['curated','price-asc','price-desc','year-desc','power-desc','mileage-asc'].includes(params.get('sort'))?params.get('sort'):'curated',favorites:params.get('favorites')==='1',body:[...new Set(cars.map(c=>c.body))].includes(params.get('body'))?params.get('body'):'all',mileage:params.has('mileage')?window.NocturneTools.numeric(params.get('mileage'),200000,200000):200000,power:window.NocturneTools.numeric(params.get('power'),0,1000)};}
+ function filterUrl(){const p=new URLSearchParams();if(filters.brands.length)p.set('brand',filters.brands.join(','));if(filters.budget<220000)p.set('budget',filters.budget);if(filters.drive!=='all')p.set('drive',filters.drive);if(filters.status!=='all')p.set('status',filters.status);if(filters.decade!=='all')p.set('decade',filters.decade);if(filters.q)p.set('q',filters.q);if(filters.sort!=='curated')p.set('sort',filters.sort);if(filters.favorites)p.set('favorites','1');if(filters.body!=='all')p.set('body',filters.body);if(filters.mileage<200000)p.set('mileage',filters.mileage);if(filters.power)p.set('power',filters.power);const q=p.toString();history.replaceState(null,'',location.pathname+location.search+'#/catalog'+(q?'?'+q:''));}
  function syncFilterInputs(){
   $('#brand-filters').innerHTML=brands.map(b=>`<label class="brand-checkbox"><input type="checkbox" data-brand="${b}" ${filters.brands.includes(b)?'checked':''}>${b}<span>${cars.filter(c=>c.brand===b).length}</span></label>`).join('');
-  $('#filter-budget').value=filters.budget;$('#budget-output').textContent=money(filters.budget);$$('input[name=drive]').forEach(i=>i.checked=i.value===filters.drive);$('#filter-status').value=filters.status;$('#filter-decade').value=filters.decade;$('#catalog-search').value=filters.q;$('#catalog-sort').value=filters.sort;$('#only-favorites').setAttribute('aria-pressed',String(filters.favorites));
+  $('#filter-budget').value=filters.budget;$('#budget-output').textContent=money(filters.budget);$$('input[name=drive]').forEach(i=>i.checked=i.value===filters.drive);$('#filter-status').value=filters.status;$('#filter-decade').value=filters.decade;$('#catalog-search').value=filters.q;$('#catalog-sort').value=filters.sort;$('#only-favorites').setAttribute('aria-pressed',String(filters.favorites));$('#filter-body').value=filters.body;$('#filter-mileage').value=filters.mileage;$('#filter-power').value=String(filters.power);
  }
  function renderCatalog(){const list=filterCars();$('#catalog-count').textContent='НАЙДЕНО: '+list.length+' / '+cars.length;$('#catalog-grid').innerHTML=list.length?list.map(card).join(''):`<div class="empty-state"><span class="empty-icon">↗</span><h2>Такая легенда пока не найдена.</h2><p>Попробуй другой бюджет, марку или поисковый запрос.</p><button class="primary-button" type="button" data-reset-filters>СБРОСИТЬ ФИЛЬТРЫ <span>↻</span></button></div>`;
   const chips=filters.brands.map(b=>({key:'brand',value:b,label:b}));if(filters.budget<220000)chips.push({key:'budget',label:'До '+money(filters.budget)});if(filters.drive!=='all')chips.push({key:'drive',label:filters.drive});if(filters.status!=='all')chips.push({key:'status',label:statusNames[filters.status]});if(filters.decade!=='all')chips.push({key:'decade',label:filters.decade+'-е'});if(filters.q)chips.push({key:'q',label:'Поиск: '+filters.q});if(filters.favorites)chips.push({key:'favorites',label:'Избранное'});
+  if(filters.body!=='all')chips.push({key:'body',label:filters.body});if(filters.mileage<200000)chips.push({key:'mileage',label:'До '+number(filters.mileage)+' км'});if(filters.power)chips.push({key:'power',label:'От '+filters.power+' PS'});
   $('#active-filters').innerHTML=chips.map(c=>`<button type="button" class="filter-chip" data-clear-filter="${c.key}" data-value="${esc(c.value||'')}">${esc(c.label)} <span aria-hidden="true">×</span></button>`).join('');
  }
  function refreshCatalog(){filterUrl();$('#budget-output').textContent=money(filters.budget);$('#only-favorites').setAttribute('aria-pressed',String(filters.favorites));renderCatalog();syncWidgets();}
@@ -89,13 +90,15 @@
   if(route==='catalog'){parseFilters(params);syncFilterInputs();renderCatalog();title='Коллекция японских легенд — NOCTURNE MOTORS';}
   else if(route==='car'){view='detail-view';if(!renderDetail(parts[1])){view='notfound-view';route='notfound';}else title=currentCar.brand+' '+currentCar.model+' — NOCTURNE MOTORS';}
   else if(route==='favorites'){renderFavorites();title='Избранное — NOCTURNE MOTORS';}
-  else if(route==='compare'){renderCompare();title='Сравнение автомобилей — NOCTURNE MOTORS';}
+  else if(route==='compare'){if(params.has('cars')){state.compare=cleanIds(params.get('cars').split(',')).slice(0,3);save();}renderCompare();title='Сравнение автомобилей — NOCTURNE MOTORS';}
   else if(route==='contact'){openContact(params);title='Твоя заявка — NOCTURNE MOTORS';}
   else if(route==='credits'){renderCredits();title='Источники и фотографии — NOCTURNE MOTORS';}
   else if(route==='services')title='Подбор и привоз — NOCTURNE MOTORS';
+  else if(extraRoutes.has(route)){const extension=extraRoutes.get(route);extension.render(params);title=extension.title+' — NOCTURNE MOTORS';}
   else if(route!=='home'){view='notfound-view';route='notfound';title='Страница не найдена — NOCTURNE MOTORS';}
   const target=document.getElementById(view);target.hidden=false;document.title=title;$$('[data-nav]').forEach(a=>{const selected=a.dataset.nav===route;a.classList.toggle('active',selected);if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});syncWidgets();
   if(route==='home'&&['story','collection'].includes(params.get('section')))requestAnimationFrame(()=>document.getElementById(params.get('section')).scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'}));else window.scrollTo({top:0,behavior:'instant'});
+  window.dispatchEvent(new CustomEvent('nocturne:route',{detail:{route,car:route==='car'?currentCar?.id:null}}));
  }
  $('#catalog-search').maxLength=100;
  $('#catalog-search').addEventListener('input',e=>{filters.q=e.target.value.trim();refreshCatalog();});
@@ -103,6 +106,9 @@
  $('#filter-budget').addEventListener('input',e=>{filters.budget=Number(e.target.value);refreshCatalog();});
  $('#filter-status').addEventListener('change',e=>{filters.status=e.target.value;refreshCatalog();});
  $('#filter-decade').addEventListener('change',e=>{filters.decade=e.target.value;refreshCatalog();});
+ $('#filter-body').addEventListener('change',e=>{filters.body=e.target.value;refreshCatalog();});
+ $('#filter-mileage').addEventListener('input',e=>{filters.mileage=e.target.value===''?200000:window.NocturneTools.numeric(e.target.value,200000,200000);refreshCatalog();});
+ $('#filter-power').addEventListener('change',e=>{filters.power=Number(e.target.value);refreshCatalog();});
  $('#only-favorites').addEventListener('click',()=>{filters.favorites=!filters.favorites;refreshCatalog();});
  document.addEventListener('change',e=>{if(e.target.matches('[data-brand]')){const b=e.target.dataset.brand;filters.brands=e.target.checked?[...new Set([...filters.brands,b])]:filters.brands.filter(x=>x!==b);refreshCatalog();}if(e.target.matches('input[name=drive]')){filters.drive=e.target.value;refreshCatalog();}});
  $('#menu-toggle').addEventListener('click',()=>{const expanded=$('#menu-toggle').getAttribute('aria-expanded')==='true';if(expanded)closeMenu();else{$('#mobile-menu').hidden=false;$('#menu-toggle').setAttribute('aria-expanded','true');$('#menu-toggle').setAttribute('aria-label','Закрыть меню');document.body.classList.add('menu-open');}});
@@ -110,7 +116,7 @@
  let lightboxFocus=null;const lightbox=$('#lightbox');
  function closeLightbox(){lightbox.close();}
  $('#lightbox-close').addEventListener('click',closeLightbox);lightbox.addEventListener('close',()=>{document.body.classList.remove('dialog-open');if(lightboxFocus)lightboxFocus.focus({preventScroll:true});});
- document.addEventListener('click',async e=>{const favorite=e.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}const compare=e.target.closest('[data-compare]');if(compare){toggleCompare(compare.dataset.compare);return;}const reset=e.target.closest('[data-reset-filters]');if(reset){resetFilters();return;}const chip=e.target.closest('[data-clear-filter]');if(chip){const key=chip.dataset.clearFilter;if(key==='brand')filters.brands=filters.brands.filter(b=>b!==chip.dataset.value);else filters[key]=key==='budget'?220000:key==='q'?'':key==='favorites'?false:'all';syncFilterInputs();refreshCatalog();return;}
+ document.addEventListener('click',async e=>{const favorite=e.target.closest('[data-favorite]');if(favorite){toggleFavorite(favorite.dataset.favorite);return;}const compare=e.target.closest('[data-compare]');if(compare){toggleCompare(compare.dataset.compare);return;}const reset=e.target.closest('[data-reset-filters]');if(reset){resetFilters();return;}const chip=e.target.closest('[data-clear-filter]');if(chip){const key=chip.dataset.clearFilter;if(key==='brand')filters.brands=filters.brands.filter(b=>b!==chip.dataset.value);else filters[key]=key==='budget'?220000:key==='mileage'?200000:key==='power'?0:key==='q'?'':key==='favorites'?false:'all';syncFilterInputs();refreshCatalog();return;}
   const home=e.target.closest('[data-home-filter]');if(home){homeFilter=home.dataset.homeFilter;$$('[data-home-filter]').forEach(b=>{const on=b===home;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderFeatured();syncWidgets();return;}
   if(e.target.closest('[data-clear-compare]')){state.compare=[];save();if(route==='compare')renderCompare();syncWidgets();return;}
   if(e.target.closest('[data-clear-favorites]')){state.favorites=[];save();renderFavorites();syncWidgets();return;}
@@ -127,5 +133,20 @@
  addEventListener('hashchange',navigate);
  addEventListener('storage',e=>{if(e.key!==storeKey)return;try{const update=JSON.parse(e.newValue||'{}');state.favorites=cleanIds(update.favorites);state.compare=cleanIds(update.compare).slice(0,3);if(route==='favorites')renderFavorites();if(route==='compare')renderCompare();if(route==='catalog')renderCatalog();syncWidgets();}catch(_){}});
  $('#filters-details').open=window.innerWidth>900;
+ window.Nocturne=Object.freeze({
+  cars,photo,card,esc,money,number,toast,
+  state:()=>JSON.parse(JSON.stringify(state)),
+  current:()=>({route,car:route==='car'?currentCar?.id:null}),
+  filters:()=>JSON.parse(JSON.stringify(filters)),
+  refresh:navigate,
+  refreshWidgets:syncWidgets,
+  registerRoute(name,render,title){
+   if(!/^[a-z-]+$/.test(name)||typeof render!=='function')return;
+   if(!document.getElementById(name+'-view')){const view=document.createElement('div');view.id=name+'-view';view.className='page-view interior-view section-pad';view.hidden=true;$('#main-content').appendChild(view);}
+   extraRoutes.set(name,{render,title});
+  },
+  setFavorites(ids){state.favorites=cleanIds(ids);save();if(route==='favorites')renderFavorites();if(route==='catalog')renderCatalog();syncWidgets();},
+  setCompare(ids){state.compare=cleanIds(ids).slice(0,3);save();if(route==='compare')renderCompare();syncWidgets();}
+ });
  renderFeatured();navigate();
 })();
